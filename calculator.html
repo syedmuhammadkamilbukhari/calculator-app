@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculator App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #18181c;
+      --card: #1f1f26;
+      --accent: #f0c040;
+      --accent2: #e05c2a;
+      --text: #f0ede8;
+      --muted: #6a6a7a;
+      --btn-num: #25252f;
+      --btn-op: #2e2020;
+      --btn-eq: #f0c040;
+      --radius: 18px;
+      --shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+
+    /* Background grain texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Floating blobs */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob1 { width: 400px; height: 400px; background: var(--accent); top: -100px; left: -100px; }
+    .blob2 { width: 300px; height: 300px; background: var(--accent2); bottom: -80px; right: -80px; }
+
+    .calculator {
+      position: relative;
+      z-index: 1;
+      background: var(--card);
+      border-radius: 28px;
+      padding: 28px 24px 24px;
+      width: 340px;
+      box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.06);
+      animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.85) translateY(30px); opacity: 0; }
+      to   { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .calc-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .display {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px 20px 16px;
+      margin-bottom: 20px;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      gap: 6px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .expression {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 18px;
+      word-break: break-all;
+      text-align: right;
+      transition: all 0.2s;
+    }
+
+    .result {
+      font-family: 'Space Mono', monospace;
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -1px;
+      transition: all 0.15s;
+      word-break: break-all;
+      text-align: right;
+      line-height: 1;
+    }
+
+    .result.pop {
+      animation: numPop 0.15s ease;
+    }
+
+    @keyframes numPop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      border-radius: 14px;
+      font-family: 'Space Mono', monospace;
+      font-size: 17px;
+      font-weight: 700;
+      height: 64px;
+      transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.15s;
+      border-radius: inherit;
+    }
+    button:active::after { opacity: 0.08; }
+    button:active { transform: scale(0.94); }
+
+    .btn-num {
+      background: var(--btn-num);
+      color: var(--text);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .btn-num:hover { background: #2e2e3a; }
+
+    .btn-op {
+      background: var(--btn-op);
+      color: var(--accent2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+      font-size: 20px;
+    }
+    .btn-op:hover { background: #3a2525; }
+
+    .btn-func {
+      background: #1e1e28;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .btn-func:hover { background: #26262f; color: var(--text); }
+
+    .btn-eq {
+      background: var(--btn-eq);
+      color: #111;
+      font-size: 22px;
+      box-shadow: 0 4px 20px rgba(240,192,64,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .btn-eq:hover { background: #f5cf60; box-shadow: 0 6px 28px rgba(240,192,64,0.5); }
+
+    .btn-zero {
+      grid-column: span 2;
+    }
+
+    /* History panel */
+    .history-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 12px 0 0;
+      height: auto;
+      border-radius: 0;
+      text-align: center;
+      transition: color 0.2s;
+    }
+    .history-toggle:hover { color: var(--text); transform: none; }
+    .history-toggle:active { transform: none; }
+    .history-toggle::after { display: none; }
+
+    .history-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .history-panel.open { max-height: 200px; }
+
+    .history-list {
+      margin-top: 10px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 10px 14px;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .history-list:empty::after {
+      content: 'No history yet';
+      display: block;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0;
+    }
+
+    .history-item {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer;
+      transition: color 0.2s;
+      text-align: right;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { color: var(--accent); }
+    .history-item span { color: var(--text); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <div class="calculator">
+    <div class="calc-title">Calculator</div>
+
+    <div class="display">
+      <div class="expression" id="expression"></div>
+      <div class="result" id="result">0</div>
+    </div>
+
+    <div class="grid">
+      <!-- Row 1 -->
+      <button class="btn-func" onclick="clearAll()">AC</button>
+      <button class="btn-func" onclick="toggleSign()">+/−</button>
+      <button class="btn-func" onclick="percentage()">%</button>
+      <button class="btn-op"   onclick="setOp('÷')">÷</button>
+
+      <!-- Row 2 -->
+      <button class="btn-num" onclick="input('7')">7</button>
+      <button class="btn-num" onclick="input('8')">8</button>
+      <button class="btn-num" onclick="input('9')">9</button>
+      <button class="btn-op"  onclick="setOp('×')">×</button>
+
+      <!-- Row 3 -->
+      <button class="btn-num" onclick="input('4')">4</button>
+      <button class="btn-num" onclick="input('5')">5</button>
+      <button class="btn-num" onclick="input('6')">6</button>
+      <button class="btn-op"  onclick="setOp('−')">−</button>
+
+      <!-- Row 4 -->
+      <button class="btn-num" onclick="input('1')">1</button>
+      <button class="btn-num" onclick="input('2')">2</button>
+      <button class="btn-num" onclick="input('3')">3</button>
+      <button class="btn-op"  onclick="setOp('+')">+</button>
+
+      <!-- Row 5 -->
+      <button class="btn-num btn-zero" onclick="input('0')">0</button>
+      <button class="btn-num" onclick="inputDot()">.</button>
+      <button class="btn-eq"  onclick="calculate()">=</button>
+    </div>
+
+    <button class="history-toggle" onclick="toggleHistory()">▾ History</button>
+    <div class="history-panel" id="historyPanel">
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    let current = '0';
+    let prev = null;
+    let op = null;
+    let fresh = false;
+    let history = [];
+
+    const resultEl = document.getElementById('result');
+    const exprEl   = document.getElementById('expression');
+
+    function updateDisplay(pop = false) {
+      resultEl.textContent = current;
+      if (pop) {
+        resultEl.classList.remove('pop');
+        void resultEl.offsetWidth;
+        resultEl.classList.add('pop');
+      }
+    }
+
+    function input(digit) {
+      if (fresh) { current = digit; fresh = false; }
+      else current = current === '0' ? digit : current + digit;
+      if (current.length > 12) current = current.slice(0, 12);
+      updateDisplay(true);
+    }
+
+    function inputDot() {
+      if (fresh) { current = '0.'; fresh = false; }
+      else if (!current.includes('.')) current += '.';
+      updateDisplay();
+    }
+
+    function setOp(newOp) {
+      if (prev !== null && !fresh) {
+        calculate(true);
+      }
+      prev = parseFloat(current);
+      op = newOp;
+      fresh = true;
+      exprEl.textContent = `${prev} ${op}`;
+    }
+
+    function calculate(silent = false) {
+      if (prev === null || op === null) return;
+      const a = prev, b = parseFloat(current);
+      let res;
+      switch (op) {
+        case '+': res = a + b; break;
+        case '−': res = a - b; break;
+        case '×': res = a * b; break;
+        case '÷': res = b !== 0 ? a / b : 'Error'; break;
+      }
+      const expr = `${a} ${op} ${b} =`;
+      if (!silent) {
+        addHistory(expr, res);
+        exprEl.textContent = expr;
+      }
+      current = res === 'Error' ? 'Error' : parseFloat(res.toFixed(10)).toString();
+      prev = null; op = null; fresh = true;
+      updateDisplay(true);
+    }
+
+    function clearAll() {
+      current = '0'; prev = null; op = null; fresh = false;
+      exprEl.textContent = '';
+      updateDisplay();
+    }
+
+    function toggleSign() {
+      if (current === '0' || current === 'Error') return;
+      current = current.startsWith('-') ? current.slice(1) : '-' + current;
+      updateDisplay(true);
+    }
+
+    function percentage() {
+      if (current === 'Error') return;
+      current = (parseFloat(current) / 100).toString();
+      updateDisplay(true);
+    }
+
+    function addHistory(expr, result) {
+      history.unshift({ expr, result });
+      if (history.length > 20) history.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = history.map((h, i) =>
+        `<div class="history-item" onclick="useHistory(${i})">${h.expr} <span>${h.result}</span></div>`
+      ).join('');
+    }
+
+    function useHistory(i) {
+      current = history[i].result.toString();
+      updateDisplay(true);
+    }
+
+    function toggleHistory() {
+      const panel = document.getElementById('historyPanel');
+      panel.classList.toggle('open');
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', e => {
+      if (e.key >= '0' && e.key <= '9') input(e.key);
+      else if (e.key === '.') inputDot();
+      else if (e.key === '+') setOp('+');
+      else if (e.key === '-') setOp('−');
+      else if (e.key === '*') setOp('×');
+      else if (e.key === '/') { e.preventDefault(); setOp('÷'); }
+      else if (e.key === 'Enter' || e.key === '=') calculate();
+      else if (e.key === 'Escape') clearAll();
+      else if (e.key === 'Backspace') {
+        if (current.length > 1) current = current.slice(0, -1);
+        else current = '0';
+        updateDisplay();
+      }
+    });
+  </script>
+</body>
+</html>
